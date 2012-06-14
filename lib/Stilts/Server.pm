@@ -29,7 +29,12 @@ has protocol => (
   required => 1,
 );
 
-has route => (
+has service => (
+  is       => 'rw',
+  required => 1,
+);
+
+has service_options => (
   is       => 'rw',
   required => 1,
 );
@@ -44,11 +49,14 @@ around BUILDARGS => sub
   $args->{name}     = delete $args->{Name};
   $args->{bound}    = delete $args->{Listen};
   $args->{protocol} = delete $args->{Protocol};
-  $args->{route}    = delete $args->{Routing};
+  $args->{service}  = delete $args->{Service};
+  $args->{service_options}  = delete $args->{Options};
 
-  my $server_class = "Stilts/Protocol/$args->{protocol}.pm";
+  my $protocol_class = "Stilts/Protocol/$args->{protocol}.pm";
+  my $service_class  = "Stilts/Service/$args->{protocol}/$args->{service}.pm";
 
-  require $server_class;
+  require $protocol_class;
+  require $service_class;
 
   $args->{sock} = Stilts::Socket->new(
     IO::Socket::INET->new(
@@ -75,13 +83,15 @@ sub reader
 
   while ( my $psock = $self->{sock}->accept )
   {
-    my $protocol_class = "Stilts::Protocol::$self->{protocol}";
+    my $protocol_class = join "::", "Stilts::Protocol", $self->protocol;
+    my $service_class  = join "::", "Stilts::Service",  $self->protocol,
+        $self->service;
 
     $protocol_class->new(
       {
-        sock   => $psock,
-        route  => $self->route,
-        server => $self,
+        sock    => $psock,
+        service => $service_class->new(options => $self->service_options),
+        server  => $self,
       }
     );
   }

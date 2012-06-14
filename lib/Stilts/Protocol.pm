@@ -11,7 +11,7 @@ has sock => (
   required => 1,
 );
 
-has route => (
+has service => (
   is       => 'rw',
   required => 1,
 );

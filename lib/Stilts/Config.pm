@@ -23,11 +23,10 @@ __DATA__
     "Name":   "Default Minimal",
     "Listen": "0.0.0.0:3001",
     "Protocol": "HTTP",
-    "Routing": [
-      {
-        "Service": "Static",
-        "Path": "/docs/"
-      }
-    ]
+    "Service": "Static",
+    "Options":
+    {
+      "Path": "/docs/"
+    }
   }
 ]
