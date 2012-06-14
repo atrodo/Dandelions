@@ -17,6 +17,10 @@ has path => (
 use autodie;
 use FindBin;
 use File::Spec;
+use IO::File;
+use Cwd qw/realpath/;
+
+my $root = realpath("$FindBin::Bin/..");
 
 sub process
 {
@@ -26,23 +30,19 @@ sub process
 
   my $headers = $protocol->headers;
 
-  my $path = File::Spec->no_upwards( $FindBin::Bin . $self->path . $headers->getURI() );
+  my $path = File::Spec->canonpath( $root . $self->path . $headers->getURI() );
+  ($path) = File::Spec->no_upwards( $path );
 
-  $path = $path . "index.html"
+  $path = "$path/index.html"
     if -d $path;
 
-  $protocol->psgi_response('200', [ 'Content-Type' => 'text/plain' ], [ "hello"]);
   if (-r $path)
   {
-    # Slurp
-    open my $fh, "<", "$path";
-    my $file = do { local $/; <$fh> };
-
-    # And send
-    $protocol->sock->write($file);
+    $protocol->psgi_response('200', [ 'Content-Type' => 'text/html' ], IO::File->new($path) );
   }
   else
   {
+    $protocol->psgi_response('404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] );
   }
 
   return 1;
