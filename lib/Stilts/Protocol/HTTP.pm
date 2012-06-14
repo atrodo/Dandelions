@@ -31,7 +31,7 @@ sub _headers
   croak "Request has already been read"
     if defined $self->headers;
 
-  $self->{headers} = HTTP::HeaderParser::XS(\$headers_str);
+  $self->{headers} = HTTP::HeaderParser::XS->new(\$headers_str);
 
   return 1;
 }
@@ -46,7 +46,7 @@ sub _headers_reader
 
   if (my $idx = index $$read_data, "\r\n\r\n")
   {
-    $self->_headers(substr $$read_data, 0, $indx));
+    $self->_headers(substr $$read_data, 0, $idx);
     $self->sock->push_back_read(substr $$read_data, $idx);
   }
   else
