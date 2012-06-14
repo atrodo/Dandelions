@@ -20,7 +20,7 @@ has reader_self => (
 
 has writer_sub => (
   is => 'rw',
-  default => sub { sub {die "No writer defined"} },
+  default => sub { sub { shift->write(undef); } },
 );
 
 has writer_self => (
@@ -38,6 +38,7 @@ sub BUILD
   my $self = shift;
 
   $self->sock->blocking(0);
+  $self->watch_write(1);
 }
 
 sub reader
