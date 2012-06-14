@@ -7,6 +7,8 @@ use Moo;
 use Carp;
 use JSON;
 
+use Data::Dumper;
+
 my $default_config = decode_json do { local $/; <DATA> };
 close DATA;
 
