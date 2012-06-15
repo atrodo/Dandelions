@@ -1,0 +1,12 @@
+[
+  {
+    "Name":   "Default Minimal",
+    "Listen": "0.0.0.0:3002",
+    "Protocol": "HTTP",
+    "Service": "Static",
+    "Options":
+    {
+      "Path": "/docs/"
+    }
+  }
+]
