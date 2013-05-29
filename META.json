@@ -1,0 +1,74 @@
+{
+   "abstract" : "PSGI based reverse proxy and webserver",
+   "author" : [
+      "Jon Gentle <cpan@atrodo.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Dist::Milla version v1.0.2, Dist::Zilla version 4.300034, CPAN::Meta::Converter version 2.130880",
+   "license" : [
+      "artistic_2"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Stilts",
+   "no_index" : {
+      "directory" : [
+         "t",
+         "xt",
+         "inc",
+         "share",
+         "eg",
+         "examples"
+      ]
+   },
+   "prereqs" : {
+      "configure" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : "6.30"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Test::Pod" : "1.41"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "Danga::Socket" : "1.61",
+            "HTTP::HeaderParser::XS" : "0.20",
+            "HTTP::Response" : "0",
+            "JSON" : "2.00",
+            "Moo" : "1.0",
+            "Plack" : "0.20",
+            "Try::Tiny" : "0",
+            "UNIVERSAL::require" : "0",
+            "autodie" : "0",
+            "perl" : "5.008005"
+         }
+      },
+      "test" : {
+         "requires" : {
+            "Test::More" : "0.88"
+         }
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "bugtracker" : {
+         "web" : "https://github.com/atrodo/Stilts/issues"
+      },
+      "homepage" : "https://github.com/atrodo/Stilts",
+      "repository" : {
+         "type" : "git",
+         "url" : "https://github.com/atrodo/Stilts.git",
+         "web" : "https://github.com/atrodo/Stilts"
+      }
+   },
+   "version" : "0.1",
+   "x_contributors" : [
+      "Jon Gentle <atrodo@atrodo.org>"
+   ]
+}
+

@@ -1,5 +1,7 @@
 package Stilts;
 
+our $VERSION = 0.1;
+
 use 5.008;
 use strict;
 use warnings;
@@ -50,3 +52,35 @@ sub run
 }
 
 1; # End of Stilts
+
+__END__
+
+=encoding utf-8
+
+=head1 NAME
+
+Stilts - PSGI based reverse proxy and webserver
+
+=head1 SYNOPSIS
+
+  use Stilts;
+
+=head1 DESCRIPTION
+
+Stilts is a PSGI based reverse proxy and webserver
+
+=head1 AUTHOR
+
+Jon Gentle E<lt>cpan@atrodo.orgE<gt>
+
+=head1 COPYRIGHT
+
+Copyright 2012- Jon Gentle
+
+=head1 LICENSE
+
+This is free software. You may redistribute copies of it under the terms of the Artistic License 2 as published by The Perl Foundation.
+
+=head1 SEE ALSO
+
+=cut
