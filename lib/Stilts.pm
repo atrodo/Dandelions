@@ -8,7 +8,13 @@ use warnings;
 
 use Moo;
 use Sub::Quote;
+
 use Carp;
+use autodie;
+use IO::File;
+use Scalar::Util qw/blessed/;
+
+use open qw/:encoding(UTF-8)/;
 
 use Danga::Socket;
 
@@ -19,36 +25,63 @@ has config => (
   is => 'ro',
   default => sub {
     my $self = shift;
-    return Stilts::Config->new($self->config_file);
+    return Stilts::Config->new($self->config_handle);
   },
   lazy => 1,
 );
 
-has config_file => (
+has config_handle => (
   is => 'ro',
   isa => sub {
-    warn Data::Dumper::Dumper(@_);
-    return 1
-      if !defined $_[0];
-#    croak "config_file must be a File::Spec"
-#      unless ref $_[0] eq "File::Spec";
-    croak "config_file does not exist or cannot be read"
-      unless -r $_[0];
+    my ($cfg) = @_;
+    croak "config_file does not appear to be a IO::Handle"
+      unless blessed($cfg) && $cfg->isa("IO::Handle");
   },
+  coerce => sub {
+    my ($cfg) = @_;
+    return $cfg
+      if blessed($cfg) && $cfg->isa("IO::Handle");
+
+    return IO::File->new($cfg, "+<")
+      if -r $cfg;
+
+    return IO::File->new(\$cfg, "+<");
+  },
+  default => sub { "" },
+);
+
+has child => (
+  is => 'rw',
 );
 
 sub run
 {
   my $self = shift;
 
-  my $config = Stilts::Config->new($self->config_file);
-
-  foreach my $binding (@{ $config->config })
+  foreach my $binding (@{ $self->config })
   {
     Stilts::Server->new($binding);
   }
 
   Danga::Socket->EventLoop();
+}
+
+sub run_child
+{
+  my $self = shift;
+
+  return $self->child
+    if defined $self->child;
+
+  my $child = fork;
+
+  if ($child)
+  {
+    $self->child($child);
+    return $child;
+  }
+
+  $self->run;
 }
 
 1; # End of Stilts

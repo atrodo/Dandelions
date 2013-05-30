@@ -9,11 +9,12 @@ use JSON;
 use autodie;
 
 use Data::Dumper;
+use Scalar::Util qw/blessed/;
 
 my $default_config = decode_json do { local $/; <DATA> };
 close DATA;
 
-has _config_file => (
+has _config_handle => (
   is => 'ro',
 );
 
@@ -25,13 +26,18 @@ has config => (
 around BUILDARGS => sub
 {
   my $orig = shift;
-  my $self = shift;
+  my $class = shift;
 
-  my $_config_file = ( defined $_[0] && -r $_[0] ) ? shift : undef;
+  my $handle;
 
-  my $args = $orig->( $self, @_ );
+  if ( blessed($_[0]) && $_[0]->isa("IO::Handle") )
+  {
+    $handle = shift;
+  }
 
-  $args->{_config_file} = $_config_file;
+  my $args = $orig->( $class, @_ );
+
+  $args->{_config_handle} = $handle;
 
   return $args;
 };
@@ -40,15 +46,23 @@ sub BUILD
 {
   my $self = shift;
 
-  if (defined $self->_config_file)
+  if (defined $self->_config_handle)
   {
-    open my $fh, "<", $self->_config_file;
-    $self->config( decode_json do {local $/; <$fh>} );
-    close $fh;
+    my $handle = $self->_config_handle;
+    my $content = do {local $/; <$handle>};
+
+    if (length $content > 0)
+    {
+      $self->config( decode_json $content );
+    }
   }
 
   return 1;
 }
+
+use overload 
+  '@{}' => sub { shift->config },
+  fallback => 1;
 
 1;
 
@@ -58,7 +72,7 @@ __DATA__
     "Name":   "Default Minimal",
     "Listen": "0.0.0.0:3001",
     "Protocol": "HTTP",
-    "Service": "Static",
+    "Handler": "Static",
     "Options":
     {
       "Path": "/docs/"
