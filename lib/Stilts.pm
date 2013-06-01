@@ -50,18 +50,34 @@ has config_handle => (
   default => sub { "" },
 );
 
-has child => (
+has _child => (
   is => 'rw',
 );
 
-sub run
+has _prepared => (
+  is => 'rw',
+);
+
+sub prepare
 {
   my $self = shift;
+
+  return
+    if $self->_prepared;
 
   foreach my $binding (@{ $self->config })
   {
     Stilts::Server->new($binding);
   }
+
+  $self->_prepared(1);
+}
+
+sub run
+{
+  my $self = shift;
+
+  $self->prepare;
 
   Danga::Socket->EventLoop();
 }
@@ -70,14 +86,17 @@ sub run_child
 {
   my $self = shift;
 
-  return $self->child
-    if defined $self->child;
+  return $self->_child
+    if defined $self->_child;
+
+  # Check everything before forking
+  $self->prepare;
 
   my $child = fork;
 
   if ($child)
   {
-    $self->child($child);
+    $self->_child($child);
     return $child;
   }
 

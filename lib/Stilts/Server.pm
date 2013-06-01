@@ -8,6 +8,7 @@ use Carp;
 
 use Stilts::Socket;
 use IO::Socket::INET;
+use UNIVERSAL::require;
 
 has name => (
   is       => 'rw',
@@ -24,20 +25,59 @@ has sock => (
   required => 1,
 );
 
-has protocol => (
-  is       => 'rw',
+has protocol_class => (
+  is       => 'ro',
+  required => 1,
+  coerce => sub
+  {
+    my $protocol_class  = join "::", "Stilts::Protocol", shift;
+
+    croak $@
+      if !$protocol_class->require;
+
+    croak "$protocol_class does not implement Stilts::Protocol"
+      unless $protocol_class->does("Stilts::Protocol");
+
+    return $protocol_class;
+  },
+);
+
+has handler_class => (
+  is       => 'ro',
+  required => 1,
+  coerce => sub {
+    my $handler_class  = join "::", "Stilts::Handler", shift;
+
+    croak $@
+      if !$handler_class->require;
+
+    croak "$handler_class does not implement Stilts::Handler"
+      unless $handler_class->does("Stilts::Handler");
+
+    return $handler_class;
+  },
+);
+
+has handler_options => (
+  is       => 'ro',
   required => 1,
 );
 
-has service => (
-  is       => 'rw',
+has handler => (
+  is       => 'ro',
   required => 1,
+  lazy => 1,
+  builder => sub {
+    my $self = shift;
+
+    return $self->handler_class->new(
+        {
+          %{ $self->handler_options },
+        }
+      );
+  },
 );
 
-has service_options => (
-  is       => 'rw',
-  required => 1,
-);
 
 around BUILDARGS => sub
 {
@@ -48,15 +88,9 @@ around BUILDARGS => sub
 
   $args->{name}     = delete $args->{Name};
   $args->{bound}    = delete $args->{Listen};
-  $args->{protocol} = delete $args->{Protocol};
-  $args->{service}  = delete $args->{Service};
-  $args->{service_options}  = delete $args->{Options};
-
-  my $protocol_class = "Stilts/Protocol/$args->{protocol}.pm";
-  my $service_class  = "Stilts/Service/$args->{protocol}/$args->{service}.pm";
-
-  require $protocol_class;
-  require $service_class;
+  $args->{protocol_class}  = delete $args->{Protocol};
+  $args->{handler_class}  = delete $args->{Handler};
+  $args->{handler_options}  = delete $args->{Options};
 
   $args->{sock} = Stilts::Socket->new(
     IO::Socket::INET->new(
@@ -74,6 +108,7 @@ sub BUILD
 {
   my $self = shift;
 
+
   $self->{sock}->reader( \&reader, $self );
 }
 
@@ -83,17 +118,7 @@ sub reader
 
   while ( my $psock = $self->{sock}->accept )
   {
-    my $protocol_class = join "::", "Stilts::Protocol", $self->protocol;
-    my $service_class  = join "::", "Stilts::Service",  $self->protocol,
-        $self->service;
-
-    $protocol_class->new(
-      {
-        sock    => $psock,
-        service => $service_class->new(options => $self->service_options),
-        server  => $self,
-      }
-    );
+    $self->handler->new_socket($psock);
   }
 
   return 1;

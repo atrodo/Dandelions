@@ -71,7 +71,7 @@ __DATA__
   {
     "Name":   "Default Minimal",
     "Listen": "0.0.0.0:3001",
-    "Protocol": "HTTP",
+    "Protocol": "PSGI",
     "Handler": "Static",
     "Options":
     {

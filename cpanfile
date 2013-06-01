@@ -8,7 +8,7 @@ requires 'HTTP::HeaderParser::XS' => '0.20';
 requires 'Plack' => '0.20';
 requires 'HTTP::Response';
 
-requires 'UNIVERSAL::require';
+requires 'UNIVERSAL::require' => 0.13;
 
 requires 'Try::Tiny' => 0;
 

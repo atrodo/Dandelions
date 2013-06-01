@@ -1,4 +1,4 @@
-package Stilts::Service::HTTP::Static;
+package Stilts::Handler::Static;
 
 use strict;
 use warnings;
@@ -6,7 +6,7 @@ use warnings;
 use Moo;
 use Carp;
 
-with 'Stilts::Service';
+with 'Stilts::Handler';
 
 has path => (
   is => 'ro',
@@ -22,7 +22,7 @@ use Cwd qw/realpath/;
 
 my $root = realpath("$FindBin::Bin/..");
 
-sub process
+sub psgi
 {
   my $self = shift;
 
@@ -38,14 +38,14 @@ sub process
 
   if (-r $path)
   {
-    $protocol->psgi_response('200', [ 'Content-Type' => 'text/html' ], IO::File->new($path) );
+    return ('200', [ 'Content-Type' => 'text/html' ], IO::File->new($path) );
   }
   else
   {
-    $protocol->psgi_response('404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] );
+    return ('404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] );
   }
 
-  return 1;
+  die;
 }
 
 1;

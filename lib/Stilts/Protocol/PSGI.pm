@@ -1,4 +1,4 @@
-package Stilts::Protocol::HTTP;
+package Stilts::Protocol::PSGI;
 
 use strict;
 use warnings;
@@ -6,7 +6,7 @@ use warnings;
 use Moo;
 use Carp;
 
-extends 'Stilts::Protocol';
+with 'Stilts::Protocol';
 
 has headers => (
   is => 'ro',
