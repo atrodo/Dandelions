@@ -11,7 +11,8 @@ use autodie;
 use Data::Dumper;
 use Scalar::Util qw/blessed/;
 
-my $default_config = decode_json do { local $/; <DATA> };
+my $json = JSON->new->relaxed(1);
+my $default_config = $json->decode(do { local $/; <DATA> });
 close DATA;
 
 has _config_handle => (
@@ -53,7 +54,7 @@ sub BUILD
 
     if (length $content > 0)
     {
-      $self->config( decode_json $content );
+      $self->config( $json->decode($content) );
     }
   }
 

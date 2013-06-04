@@ -1,11 +1,26 @@
 #!perl
 
-use Test::More tests => 1;
+use Test::More tests => 3;
 
 use Stilts;
+use Try::Tiny;
 
-my $stilt = Stilts->new();
+my $port = "63021";
+my $cfg = <<EOD;
+[
+  {
+    "Listen": "127.0.0.1:$port",
+    "Protocol": "PSGI",
+    "Handler": "Static"
+  }
+]
+EOD
 
-$stilt->run_child;
+Stilts->new(config_handle => $cfg);
 
-ok("Started a background server");
+pass("Loaded a good JSON file");
+
+is( try { Stilts->new(config_handle => "$cfg;"); 1; }, 1, "Did not load a bad JSON config");
+
+$cfg =~ s/}/,}/g;
+ok( Stilts->new(config_handle => "$cfg"), "Did load a hand crafted JSON config");

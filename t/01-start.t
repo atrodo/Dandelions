@@ -8,4 +8,4 @@ my $stilt = Stilts->new();
 
 $stilt->run_child;
 
-ok("Started a background server");
+pass("Started a background server");

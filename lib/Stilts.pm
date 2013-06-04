@@ -8,6 +8,7 @@ use warnings;
 
 use Moo;
 use Sub::Quote;
+use Try::Tiny;
 
 use Carp;
 use autodie;
@@ -42,8 +43,11 @@ has config_handle => (
     return $cfg
       if blessed($cfg) && $cfg->isa("IO::Handle");
 
-    return IO::File->new($cfg, "+<")
-      if -r $cfg;
+    try
+    {
+      # No need to check with autodie enabled; silently ignore errors
+      return IO::File->new($cfg, "+<");
+    };
 
     return IO::File->new(\$cfg, "+<");
   },
@@ -96,11 +100,27 @@ sub run_child
 
   if ($child)
   {
+    my $rv = waitpid( $child, POSIX::WNOHANG );
+
+    croak "Child process could not be forked: $?"
+      if $rv < 0;
+
     $self->_child($child);
     return $child;
   }
 
   $self->run;
+}
+
+require POSIX;
+sub DEMOLISH
+{
+  my $self = shift;
+
+  if ($self->_child)
+  {
+    kill POSIX::SIGTERM, $self->_child;
+  }
 }
 
 1; # End of Stilts
