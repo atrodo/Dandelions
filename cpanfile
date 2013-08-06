@@ -14,4 +14,5 @@ requires 'Try::Tiny' => 0;
 
 on test => sub {
     requires 'Test::More', '0.88';
+    requires 'Test::WWW::Mechanize';
 };

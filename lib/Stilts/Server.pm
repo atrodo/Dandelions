@@ -78,6 +78,16 @@ has handler => (
   },
 );
 
+has protocol => (
+  is       => 'ro',
+  required => 1,
+  lazy => 1,
+  builder => sub {
+    my $self = shift;
+
+    return $self->protocol_class->new( handler => $self->handler );
+  },
+);
 
 around BUILDARGS => sub
 {
@@ -108,17 +118,16 @@ sub BUILD
 {
   my $self = shift;
 
-
-  $self->{sock}->reader( \&reader, $self );
+  $self->sock->reader( $self );
 }
 
 sub reader
 {
   my $self = shift;
 
-  while ( my $psock = $self->{sock}->accept )
+  while ( my $psock = $self->sock->accept )
   {
-    $self->handler->new_socket($psock);
+    $psock->reader( $self->protocol->new_socket );
   }
 
   return 1;

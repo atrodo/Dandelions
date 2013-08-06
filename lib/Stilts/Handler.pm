@@ -6,4 +6,6 @@ use warnings;
 use Moo::Role;
 use Carp;
 
+requires 'process';
+
 1;

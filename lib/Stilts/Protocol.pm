@@ -8,14 +8,7 @@ use Carp;
 
 use Scalar::Util qw/blessed/;
 
-has sock => (
-  is       => 'ro',
-  required => 1,
-  isa => sub {
-    croak "Must pass a Stilts::Socket to Stilts::Protocol"
-      unless blessed($_[0]) && $_[0]->isa("Stilts::Socket");
-  },
-);
+requires "new_socket";
 
 has handler => (
   is       => 'ro',

@@ -2,7 +2,8 @@ package Stilts::Socket;
 
 use Moo;
 use Carp;
-use fields qw/reader_sub reader_self writer_sub writer_self/;
+use Scalar::Util qw/blessed/;
+use fields qw/reader_sub writer_sub/;
 
 use Try::Tiny;
 
@@ -11,27 +12,22 @@ extends 'Danga::Socket';
 has reader_sub => (
   is => 'rw',
   default => sub { sub {die "No reader defined"} },
-);
-
-has reader_self => (
-  is => 'rw',
-  default => sub { undef },
+  init_arg => 'reader',
 );
 
 has writer_sub => (
   is => 'rw',
   default => sub { sub { shift->write(undef); } },
-);
-
-has writer_self => (
-  is => 'rw',
-  default => sub { undef },
+  init_arg => 'writer',
 );
 
 sub BUILDARGS
 {
-  return {};
-}
+  my $class = shift;
+  my $socket = shift;
+
+  return Moo::Object::BUILDARGS($class, @_);
+};
 
 sub BUILD
 {
@@ -45,15 +41,37 @@ sub reader
 {
   my $self = shift;
   my $sub = shift;
-  my $alt_self = shift;
 
-  croak "reader must be a coderef"
-    unless !defined($sub) ||  $sub ne "CODE";
+  if (!defined $self)
+  {
+    $self->reader_sub(undef);
+    $self->watch_read(0);
+    return;
+  }
+
+  if ( blessed($sub) && $sub->can("reader") )
+  {
+    my $sub_self = $sub;
+    $sub = sub {
+      $sub_self->reader(@_);
+    };
+  }
+
+  if ( ref $sub eq "CODE" )
+  {
+    my $sub_self = $sub;
+    $sub = sub {
+      $sub_self->(@_);
+    };
+  }
+
+  croak "reader must be a coderef: $sub"
+    unless ref $sub eq "CODE";
+
 
   $self->reader_sub($sub);
-  $self->reader_self($alt_self);
 
-  $self->watch_read(defined $sub);
+  $self->watch_read(1);
 
   return;
 }
@@ -62,13 +80,28 @@ sub writer
 {
   my $self = shift;
   my $sub = shift;
-  my $alt_self = shift;
+
+  if (!defined $self)
+  {
+    $self->writer_sub(undef);
+    $self->watch_write(0);
+    return;
+  }
+
+  if ( blessed($sub) && $sub->can("writer") )
+  {
+    my $sub_self = $sub;
+    $sub = sub {
+      $sub_self->writer(@_);
+    };
+  }
 
   croak "writer must be a coderef"
-    unless !defined($sub) ||  $sub ne "CODE";
+    unless ref $sub eq "CODE";
 
   $self->writer_sub($sub);
-  $self->writer_self($alt_self);
+
+  $self->watch_write(1);
 
   return;
 }
@@ -93,11 +126,14 @@ sub event_read
 {
   my $self = shift;
 
-  try { $self->reader_sub->($self->reader_self || $self, @_); }
+  try { $self->reader_sub->($self, @_); }
   catch {
-    warn @_;
+    warn "!!!: @_";
     $self->close;
   };
+
+  #$self->close
+  #  if !defined $self->read(0);
 }
 
 sub event_write
@@ -108,6 +144,15 @@ sub event_write
     warn @_;
     $self->close;
   };
+}
+
+sub event_err
+{
+  my $self = shift;
+
+  $self->close;
+
+  return 1;
 }
 
 #sub event_err {  my $self = shift; $self->close('error'); }

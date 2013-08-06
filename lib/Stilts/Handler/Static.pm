@@ -6,43 +6,43 @@ use warnings;
 use Moo;
 use Carp;
 
-with 'Stilts::Handler';
-
-has path => (
-  is => 'ro',
-  required => 1,
-  init_arg => 'Path',
-);
-
 use autodie;
 use FindBin;
 use File::Spec;
 use IO::File;
 use Cwd qw/realpath/;
 
-my $root = realpath("$FindBin::Bin/..");
+my $root = realpath("$FindBin::Bin");
 
-sub psgi
+with 'Stilts::Handler';
+
+has path => (
+  is => 'ro',
+  required => 1,
+  init_arg => 'Path',
+  coerce => sub { realpath(File::Spec->catdir($root, $_[0])); },
+);
+
+sub process
 {
   my $self = shift;
 
-  my $protocol = shift;
+  my $env = shift;
 
-  my $headers = $protocol->headers;
+  my $path = realpath( $self->path . $env->{REQUEST_URI} );
 
-  my $path = File::Spec->canonpath( $root . $self->path . $headers->getURI() );
-  ($path) = File::Spec->no_upwards( $path );
-
-  $path = "$path/index.html"
+  $path = File::Spec->catfile($path, "index.html")
     if -d $path;
 
   if (-r $path)
   {
-    return ('200', [ 'Content-Type' => 'text/html' ], IO::File->new($path) );
+    my $file = IO::File->new($path);
+    my $size = -s $path;
+    return ['200', [ 'Content-Type' => 'text/html', 'Content-Length' => $size, ], $file ];
   }
   else
   {
-    return ('404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] );
+    return ['404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] ];
   }
 
   die;
