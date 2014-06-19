@@ -71,12 +71,12 @@ __DATA__
 [
   {
     "Name":   "Default Minimal",
-    "Listen": "0.0.0.0:3001",
+    "Listen": "0.0.0.0:3002",
     "Protocol": "PSGI",
     "Handler": "Static",
     "Options":
     {
-      "Path": "/docs/"
+      "Path": "../docs/"
     }
   }
 ]
