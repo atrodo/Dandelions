@@ -1,4 +1,4 @@
-package Stilts::Handler;
+package Dandelions::Handler;
 
 use strict;
 use warnings;

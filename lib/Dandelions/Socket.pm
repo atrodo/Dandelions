@@ -1,4 +1,4 @@
-package Stilts::Socket;
+package Dandelions::Socket;
 
 use Moo;
 use Carp;
@@ -37,6 +37,23 @@ sub BUILD
   $self->watch_write(1);
 }
 
+BEGIN
+{
+
+  package MagicalCodeRef;
+
+    require B;
+  use overload '""' => sub
+  {
+
+    my $ref = shift;
+    my $gv  = B::svref_2object($ref)->GV;
+    sprintf "%s:%d", $gv->FILE, $gv->LINE;
+  };
+
+  sub enchant { bless $_[1], $_[0] }
+}
+
 sub reader
 {
   my $self = shift;
@@ -53,6 +70,8 @@ sub reader
   {
     my $sub_self = $sub;
     $sub = sub {
+      my $gv  = B::svref_2object($sub_self->can("reader"))->GV;
+      warn sprintf "%s:%d\n", $gv->FILE, $gv->LINE;
       $sub_self->reader(@_);
     };
   }
@@ -61,6 +80,8 @@ sub reader
   {
     my $sub_self = $sub;
     $sub = sub {
+      my $gv  = B::svref_2object($sub_self)->GV;
+      warn sprintf "%s:%d\n", $gv->FILE, $gv->LINE;
       $sub_self->(@_);
     };
   }
@@ -125,6 +146,8 @@ sub accept
 sub event_read
 {
   my $self = shift;
+
+  warn $self . " " . $self->reader_sub . "\n";
 
   try { $self->reader_sub->($self, @_); }
   catch {

@@ -3,7 +3,7 @@
 use Test::More tests => 1;
 
 BEGIN {
-    use_ok( 'Stilts' ) || print "Bail out!\n";
+    use_ok( 'Dandelions' ) || print "Bail out!\n";
 }
 
-diag( "Testing Stilts $Stilts::VERSION, Perl $], $^X" );
+diag( "Testing Dandelions $Dandelions::VERSION, Perl $], $^X" );

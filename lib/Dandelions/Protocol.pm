@@ -1,4 +1,4 @@
-package Stilts::Protocol;
+package Dandelions::Protocol;
 
 use strict;
 use warnings;
@@ -14,8 +14,8 @@ has handler => (
   is       => 'ro',
   required => 1,
   isa => sub {
-    croak "Must pass a Stilts::Handler to Stilts::Protocol"
-      unless blessed($_[0]) && $_[0]->does("Stilts::Handler");
+    croak "Must pass a Dandelions::Handler to Dandelions::Protocol"
+      unless blessed($_[0]) && $_[0]->does("Dandelions::Handler");
   },
 );
 

@@ -1,4 +1,4 @@
-package Stilts::Protocol::PSGI;
+package Dandelions::Protocol::PSGI;
 
 use strict;
 use warnings;
@@ -8,7 +8,7 @@ use Carp;
 use autodie;
 use Try::Tiny;
 
-with 'Stilts::Protocol';
+with 'Dandelions::Protocol';
 
 use HTTP::HeaderParser::XS;
 use URI::Escape qw//;
@@ -164,7 +164,7 @@ sub reader
 
       try
       {
-        Stilts::Socket->new($body, reader => $otherfd);
+        Dandelions::Socket->new($body, reader => $otherfd);
       }
       catch
       {

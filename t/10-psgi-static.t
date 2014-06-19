@@ -4,7 +4,7 @@ use Test::More tests => 3;
 use autodie;
 use FindBin;
 
-use Stilts;
+use Dandelions;
 use Try::Tiny;
 use Test::WWW::Mechanize;
 
@@ -24,7 +24,7 @@ my $cfg = <<EOD;
 ]
 EOD
 
-my $server = Stilts->new( config_handle => $cfg );
+my $server = Dandelions->new( config_handle => $cfg );
 $server->run_child;
 
 my $mech = Test::WWW::Mechanize->new;

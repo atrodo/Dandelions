@@ -1,4 +1,4 @@
-package Stilts::Server;
+package Dandelions::Server;
 
 use strict;
 use warnings;
@@ -6,7 +6,7 @@ use warnings;
 use Moo;
 use Carp;
 
-use Stilts::Socket;
+use Dandelions::Socket;
 use IO::Socket::INET;
 use UNIVERSAL::require;
 
@@ -30,13 +30,13 @@ has protocol_class => (
   required => 1,
   coerce => sub
   {
-    my $protocol_class  = join "::", "Stilts::Protocol", shift;
+    my $protocol_class  = join "::", "Dandelions::Protocol", shift;
 
     croak $@
       if !$protocol_class->require;
 
-    croak "$protocol_class does not implement Stilts::Protocol"
-      unless $protocol_class->does("Stilts::Protocol");
+    croak "$protocol_class does not implement Dandelions::Protocol"
+      unless $protocol_class->does("Dandelions::Protocol");
 
     return $protocol_class;
   },
@@ -46,13 +46,13 @@ has handler_class => (
   is       => 'ro',
   required => 1,
   coerce => sub {
-    my $handler_class  = join "::", "Stilts::Handler", shift;
+    my $handler_class  = join "::", "Dandelions::Handler", shift;
 
     croak $@
       if !$handler_class->require;
 
-    croak "$handler_class does not implement Stilts::Handler"
-      unless $handler_class->does("Stilts::Handler");
+    croak "$handler_class does not implement Dandelions::Handler"
+      unless $handler_class->does("Dandelions::Handler");
 
     return $handler_class;
   },
@@ -102,7 +102,7 @@ around BUILDARGS => sub
   $args->{handler_class}  = delete $args->{Handler};
   $args->{handler_options}  = delete $args->{Options};
 
-  $args->{sock} = Stilts::Socket->new(
+  $args->{sock} = Dandelions::Socket->new(
     IO::Socket::INET->new(
       LocalAddr => $args->{bound},
       Proto     => "tcp",

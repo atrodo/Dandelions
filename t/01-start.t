@@ -2,9 +2,9 @@
 
 use Test::More tests => 1;
 
-use Stilts;
+use Dandelions;
 
-my $stilt = Stilts->new();
+my $stilt = Dandelions->new();
 
 $stilt->run_child;
 

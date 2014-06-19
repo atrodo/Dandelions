@@ -1,4 +1,4 @@
-package Stilts;
+package Dandelions;
 
 our $VERSION = 0.1;
 
@@ -19,14 +19,14 @@ use open qw/:encoding(UTF-8)/;
 
 use Danga::Socket;
 
-use Stilts::Config;
-use Stilts::Server;
+use Dandelions::Config;
+use Dandelions::Server;
 
 has config => (
   is => 'ro',
   default => sub {
     my $self = shift;
-    return Stilts::Config->new($self->config_handle);
+    return Dandelions::Config->new($self->config_handle);
   },
   lazy => 1,
 );
@@ -46,6 +46,8 @@ has config_handle => (
     try
     {
       # No need to check with autodie enabled; silently ignore errors
+      #-r $cfg && -w $cfg;
+      #open my $cfg_fh, "+<", $cfg;
       return IO::File->new($cfg, "+<");
     };
 
@@ -71,7 +73,7 @@ sub prepare
 
   foreach my $binding (@{ $self->config })
   {
-    Stilts::Server->new($binding);
+    Dandelions::Server->new($binding);
   }
 
   $self->_prepared(1);
@@ -123,7 +125,7 @@ sub DEMOLISH
   }
 }
 
-1; # End of Stilts
+1; # End of Dandelions
 
 __END__
 
@@ -131,15 +133,15 @@ __END__
 
 =head1 NAME
 
-Stilts - PSGI based reverse proxy and webserver
+Dandelions - PSGI based reverse proxy and webserver
 
 =head1 SYNOPSIS
 
-  use Stilts;
+  use Dandelions;
 
 =head1 DESCRIPTION
 
-Stilts is a PSGI based reverse proxy and webserver
+Dandelions is a PSGI based reverse proxy and webserver
 
 =head1 AUTHOR
 

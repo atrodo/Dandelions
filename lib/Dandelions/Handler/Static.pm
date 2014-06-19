@@ -1,4 +1,4 @@
-package Stilts::Handler::Static;
+package Dandelions::Handler::Static;
 
 use strict;
 use warnings;
@@ -14,7 +14,7 @@ use Cwd qw/realpath/;
 
 my $root = realpath("$FindBin::Bin");
 
-with 'Stilts::Handler';
+with 'Dandelions::Handler';
 
 has path => (
   is => 'ro',

@@ -1,4 +1,4 @@
-package Stilts::Config;
+package Dandelions::Config;
 
 use strict;
 use warnings;

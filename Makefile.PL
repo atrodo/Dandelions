@@ -15,10 +15,10 @@ my %WriteMakefileArgs = (
   "CONFIGURE_REQUIRES" => {
     "ExtUtils::MakeMaker" => "6.30"
   },
-  "DISTNAME" => "Stilts",
+  "DISTNAME" => "Dandelions",
   "EXE_FILES" => [],
   "LICENSE" => "artistic_2",
-  "NAME" => "Stilts",
+  "NAME" => "Dandelions",
   "PREREQ_PM" => {
     "Danga::Socket" => "1.61",
     "HTTP::HeaderParser::XS" => "0.20",
