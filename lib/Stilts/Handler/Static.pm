@@ -31,8 +31,8 @@ sub process
 
   my $path = realpath( $self->path . $env->{REQUEST_URI} );
 
-  $path = File::Spec->catfile($path, "index.html")
-    if -d $path;
+  $path = File::Spec->catfile($self->path, "index.html")
+    if !defined $path || -d $path;
 
   if (-r $path)
   {
@@ -45,7 +45,7 @@ sub process
     return ['404', [ 'Content-Type' => 'text/plain' ], [ "Not Found" ] ];
   }
 
-  die;
+  return ['500', ['Content-Type' => 'text/plain' ], [ 'Error' ]];;
 }
 
 1;
