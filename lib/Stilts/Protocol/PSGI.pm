@@ -205,7 +205,7 @@ sub create_env
   my $t = $Plack::Util::TRUE;
   my $f = $Plack::Util::FALSE;
 
-  my $uri = new URI($headers->getURI);
+  my $uri = URI->new($headers->getURI);
   my $env = {
 
         REQUEST_METHOD    => $headers->request_method,
