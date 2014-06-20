@@ -162,7 +162,12 @@ sub event_read
 sub event_write
 {
   my $self = shift;
-  try { $self->writer_sub->($self, @_); }
+  try {
+    if ($self->writer_sub->($self, @_))
+    {
+      $self->watch_write(0);
+    }
+  }
   catch {
     warn @_;
     $self->close;

@@ -137,6 +137,7 @@ sub reader
       $sock->write($response);
 
       $sock->write(join('', @$body));
+      $sock->close;
     }
     elsif (Plack::Util::is_real_fh($body))
     {
@@ -149,33 +150,32 @@ sub reader
       $response .= "\r\n";
       $sock->write($response);
 
-      my $otherfd = sub {
-        my $len = $body->read(my $data, $max_read);
-        if ($len == 0)
-        {
-          $body->close;
-          $sock->reader($self);
-          return;
-        }
-        $sock->write($data);
-      };
+      my $sendfile_return = -1;
 
-      warn fileno $body;
-
-      try
+      if (Sys::Syscall::sendfile_defined())
       {
-        Dandelions::Socket->new($body, reader => $otherfd);
+        $sendfile_return = Sys::Syscall::sendfile($sock, $body, -1);
       }
-      catch
+
+      if ($sendfile_return == -1)
       {
-        my $sendfile_return = -1;
+        my $otherfd = sub {
+          my $len = $body->read(my $data, $max_read);
 
-        if (Sys::Syscall::sendfile_defined())
+          $sock->write($data);
+
+          if ($body->eof)
+          {
+            $body->close;
+            $sock->close;
+          }
+        };
+
+        try
         {
-          $sendfile_return = Sys::Syscall::sendfile($sock, $body, -1);
+          Dandelions::Socket->new($body, reader => $otherfd);
         }
-
-        if ($sendfile_return == -1)
+        catch
         {
           while (!$body->eof)
           {
