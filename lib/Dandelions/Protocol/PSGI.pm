@@ -16,6 +16,7 @@ use HTTP::Response;
 use Plack::Response;
 use Plack::Util;
 use Sys::Syscall;
+use Stream::Buffered;
 
 sub new_socket
 {
@@ -34,18 +35,18 @@ sub reader
 
   my $read_data = $sock->read($max_read);
 
-  if ( !defined $read_data)
+  if ( !defined $read_data )
   {
     $sock->close;
-    return
+    return;
   }
 
   my $hdr_end;
 
-  foreach my $hdr_ending ("\r\n\r\n", "\n\n")
+  foreach my $hdr_ending ( "\r\n\r\n", "\n\n" )
   {
     $hdr_end = index $$read_data, $hdr_ending;
-    if ($hdr_end > -1)
+    if ( $hdr_end > -1 )
     {
       $hdr_end += length $hdr_ending;
       last;
@@ -54,188 +55,201 @@ sub reader
     undef $hdr_end;
   }
 
-  if (!defined $hdr_end)
+  if ( !defined $hdr_end )
   {
     $sock->push_back_read($read_data);
     return;
   }
 
   my $headers_str = substr $$read_data, 0, $hdr_end;
-  my $headers = HTTP::HeaderParser::XS->new(\$headers_str);
-  $sock->push_back_read(substr $$read_data, $hdr_end);
+  my $headers = HTTP::HeaderParser::XS->new( \$headers_str );
+  $sock->push_back_read( substr $$read_data, $hdr_end );
 
-  $sock->reader(sub {
-    my $sock = shift;
-
-    my $len = $headers->content_length || 0;
-    if ($len > $max_read)
+  $sock->reader(
+    sub
     {
-      $sock->close;
-      return;
-    }
+      my $sock = shift;
 
-    my $read_data = $sock->read($len);
-    if (length $$read_data < $len)
-    {
-      $sock->push_back_read($read_data);
-      return;
-    }
-
-    $sock->watch_read(0);
-
-    my $env = $self->create_env($headers, $sock);
-
-    my $res = $self->handler->process($env);
-
-    my ($code, $headers, $body) = @$res;
-
-    my $protocol = $env->{SERVER_PROTOCOL};
-    my $code_english = HTTP::HeaderParser::XS->http_code_english($code);
-
-    my $response = "$protocol $code $code_english\r\n";
-
-    my $content_type;
-    my $content_length;
-
-    foreach (my $i = 0; $i < scalar @$headers; $i += 2)
-    {
-      my $k = $headers->[$i];
-      my $v = $headers->[$i + 1];
-
-      next
-        if $k =~ m/ ( [^\w-] ) /xms;
-
-      next
-        if $k !~ m/ ( ^ [[:alpha:]] | [-_] $ ) /xms;
-
-      next
-        if $k =~ m/^ Status %/xi;
-
-      if ($k =~ m/^ Content-Length $/xi)
+      my $len = $headers->content_length || 0;
+      if ( $len > $max_read )
       {
-        $len = $v + 0;
-      }
-      elsif ($k =~ m/^ Content-Type $/xi)
-      {
-        $content_type = $v;
+        $sock->close;
+        return;
       }
 
-      $response .= "$k: $v\r\n";
+      my $read_data = Stream::Buffered->new($len);
 
-    }
-
-    if (ref $body eq "ARRAY")
-    {
-      if (!defined $content_length)
+      my $read_len = 0;
+      while ( my $data = $sock->read( $len - $read_len ) )
       {
-        $content_length = 0;
-        map { $content_length += length $_ } @$body;
-        $response .= "Content-Length: $content_length\r\n";
+        $read_len += length $$data;
+        $read_data->print($$data);
+      }
+      if ( $read_len < $len )
+      {
+        $sock->push_back_read($read_data);
+        return;
       }
 
-      $response .= "\r\n";
-      $sock->write($response);
+      $sock->watch_read(0);
 
-      $sock->write(join('', @$body));
-      $sock->close;
-    }
-    elsif (Plack::Util::is_real_fh($body))
-    {
-      if (!defined $content_length)
+      my $env = $self->create_env( $headers, $sock, $read_data );
+
+      my $res = $self->handler->process($env);
+
+      my ( $code, $headers, $body ) = @$res;
+
+      my $protocol     = $env->{SERVER_PROTOCOL};
+      my $code_english = HTTP::HeaderParser::XS->http_code_english($code);
+
+      my $response = "$protocol $code $code_english\r\n";
+
+      my $content_type;
+      my $content_length;
+
+      foreach ( my $i = 0; $i < scalar @$headers; $i += 2 )
       {
-        $content_length = -s $body;
-        $response .= "Content-Length: $content_length\r\n";
-      }
+        my $k = $headers->[$i];
+        my $v = $headers->[ $i + 1 ];
 
-      $response .= "\r\n";
-      $sock->write($response);
+        next
+            if $k =~ m/ ( [^\w-] ) /xms;
 
-      my $sendfile_return = -1;
+        next
+            if $k !~ m/ ( ^ [[:alpha:]] | [-_] $ ) /xms;
 
-      if (Sys::Syscall::sendfile_defined())
-      {
-        $sendfile_return = Sys::Syscall::sendfile($sock, $body, -1);
-      }
+        next
+            if $k =~ m/^ Status %/xi;
 
-      if ($sendfile_return == -1)
-      {
-        my $otherfd = sub {
-          my $len = $body->read(my $data, $max_read);
-
-          $sock->write($data);
-
-          if ($body->eof)
-          {
-            $body->close;
-            $sock->close;
-          }
-        };
-
-        try
+        if ( $k =~ m/^ Content-Length $/xi )
         {
-          Dandelions::Socket->new($body, reader => $otherfd);
+          $len = $v + 0;
         }
-        catch
+        elsif ( $k =~ m/^ Content-Type $/xi )
         {
-          while (!$body->eof)
+          $content_type = $v;
+        }
+
+        $response .= "$k: $v\r\n";
+
+      }
+
+      if ( ref $body eq "ARRAY" )
+      {
+        if ( !defined $content_length )
+        {
+          $content_length = 0;
+          map { $content_length += length $_ } @$body;
+          $response .= "Content-Length: $content_length\r\n";
+        }
+
+        $response .= "\r\n";
+        $sock->write($response);
+
+        $sock->write( join( '', @$body ) );
+        $sock->close;
+      }
+      elsif ( Plack::Util::is_real_fh($body) )
+      {
+        if ( !defined $content_length )
+        {
+          $content_length = -s $body;
+          $response .= "Content-Length: $content_length\r\n";
+        }
+
+        $response .= "\r\n";
+        $sock->write($response);
+
+        my $sendfile_return = -1;
+
+        if ( Sys::Syscall::sendfile_defined() )
+        {
+          $sendfile_return = Sys::Syscall::sendfile( $sock, $body, -1 );
+        }
+
+        if ( $sendfile_return == -1 )
+        {
+          my $otherfd = sub
           {
-            $otherfd->();
+            my $len = $body->read( my $data, $max_read );
+
+            $sock->write($data);
+
+            if ( $body->eof )
+            {
+              $body->close;
+              $sock->close;
+            }
+          };
+
+          try
+          {
+            Dandelions::Socket->new( $body, reader => $otherfd );
+          }
+          catch
+          {
+            while ( !$body->eof )
+            {
+              $otherfd->();
+            }
           }
         }
-      };
-      return;
-    }
-    else
-    {
-      die;
-    }
+        return;
+      }
+      else
+      {
+        die;
+      }
 
-    $sock->reader($self);
-  });
+      $sock->reader($self);
+    }
+  );
 
   return 1;
 }
 
 sub create_env
 {
-  my $self = shift;
+  my $self    = shift;
   my $headers = shift;
-  my $sock = shift;
+  my $sock    = shift;
+  my $content = shift;
 
   my $t = $Plack::Util::TRUE;
   my $f = $Plack::Util::FALSE;
 
-  my $uri = URI->new($headers->getURI);
+  my $uri = URI->new( $headers->getURI );
   my $env = {
 
-        REQUEST_METHOD    => $headers->request_method,
-        SCRIPT_NAME       => '',
-        PATH_INFO         => $uri->path,
-        REQUEST_URI       => $headers->getURI,
-        QUERY_STRING      => $uri->query || '',
-        SERVER_NAME       => $sock->local_ip_string,
-        SERVER_PORT       => $sock->{local_port},
-        SERVER_PROTOCOL   => $headers->version,
-        CONTENT_LENGTH    => $headers->content_length,
-        CONTENT_LENGTH    => $headers->header('Content-Type') || '',
-        'psgi.version'      => [ 1, 1 ],
-        'psgi.url_scheme'   => 'http', # TODO
-        'psgi.input'        => '',
-        'psgi.errors'       => *STDERR,
-        'psgi.multithread'  => $f,
-        'psgi.multiprocess' => $f,
-        'psgi.run_once'     => $f,
-        'psgi.nonblocking'  => $t,
-        'psgi.streaming'    => $t,
+    REQUEST_METHOD      => $headers->request_method,
+    SCRIPT_NAME         => '',
+    PATH_INFO           => $uri->path,
+    REQUEST_URI         => $headers->getURI,
+    QUERY_STRING        => $uri->query || '',
+    SERVER_NAME         => $sock->local_ip_string,
+    SERVER_PORT         => $sock->{local_port},
+    SERVER_PROTOCOL     => $headers->version,
+    CONTENT_LENGTH      => $headers->content_length,
+    CONTENT_TYPE        => $headers->header('Content-Type') || '',
+    'psgi.version'      => [ 1, 1 ],
+    'psgi.url_scheme'   => 'http',                                   # TODO
+    'psgi.input'        => $content->rewind,
+    'psgi.errors'       => *STDERR,
+    'psgi.multithread'  => $f,
+    'psgi.multiprocess' => $f,
+    'psgi.run_once'     => $f,
+    'psgi.nonblocking'  => $t,
+    'psgi.streaming'    => $t,
   };
 
-    for my $field ( keys $headers->getHeaders) {
-        my $key = uc("HTTP_$field");
-        $key =~ tr/-/_/;
+  for my $field ( keys $headers->getHeaders )
+  {
+    my $key = uc("HTTP_$field");
+    $key =~ tr/-/_/;
 
-        $env->{$key} = $headers->header($field)
+    $env->{$key} = $headers->header($field)
         if !exists $env->{$key};
-    }
+  }
 
   return $env;
 }
@@ -249,7 +263,7 @@ sub _service_reader
 
   $self->service->process($self);
 
-  $self->sock->reader(\&_headers_reader, $self);
+  $self->sock->reader( \&_headers_reader, $self );
 
   return 1;
 }
@@ -258,20 +272,21 @@ sub psgi_response
 {
   my $self = shift;
 
-  my $res = res_from_psgi([@_]);
+  my $res = res_from_psgi( [@_] );
 
   $res->protocol("HTTP/1.0");
-  $self->sock->write($res->as_string);
+  $self->sock->write( $res->as_string );
   $self->sock->close;
 }
 
 package HTTP::HeaderParser::XS;
+
 sub version
 {
-  my $self = shift;
+  my $self   = shift;
   my $vernum = $self->version_number;
 
-  my $major = int($vernum / 1000);
+  my $major = int( $vernum / 1000 );
   my $minor = $vernum % 1000;
 
   return "HTTP/$major.$minor";

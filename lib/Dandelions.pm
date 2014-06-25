@@ -23,37 +23,43 @@ use Dandelions::Config;
 use Dandelions::Server;
 
 has config => (
-  is => 'ro',
-  default => sub {
+  is      => 'rwp',
+  default => sub
+  {
     my $self = shift;
-    return Dandelions::Config->new($self->config_handle);
+    return Dandelions::Config->new( $self->config_handle );
   },
   lazy => 1,
 );
 
 has config_handle => (
-  is => 'ro',
-  isa => sub {
+  is  => 'ro',
+  isa => sub
+  {
     my ($cfg) = @_;
     croak "config_file does not appear to be a IO::Handle"
-      unless blessed($cfg) && $cfg->isa("IO::Handle");
+        unless blessed($cfg) && $cfg->isa("IO::Handle");
   },
-  coerce => sub {
+  coerce => sub
+  {
     my ($cfg) = @_;
     return $cfg
-      if blessed($cfg) && $cfg->isa("IO::Handle");
+        if blessed($cfg) && $cfg->isa("IO::Handle");
 
-    try
-    {
-      # No need to check with autodie enabled; silently ignore errors
-      #-r $cfg && -w $cfg;
-      #open my $cfg_fh, "+<", $cfg;
-      return IO::File->new($cfg, "+<");
-    };
+    # Do a tmpfile because in-memory string file won't truncate
+    my $file = IO::File->new_tmpfile;
 
-    return IO::File->new(\$cfg, "+<");
+    $file->print($cfg);
+    $file->seek( 0, 0 );
+    return $file;
   },
-  default => sub { "" },
+  default => sub {""},
+);
+
+has servers => (
+  is      => 'ro',
+  coerce  => sub { [] },
+  default => sub { [] },
 );
 
 has _child => (
@@ -64,16 +70,68 @@ has _prepared => (
   is => 'rw',
 );
 
+sub load_new_config
+{
+  my $self   = shift;
+  my $config = shift;
+
+  my $config_handle = $self->config_handle;
+  $config_handle->truncate(0);
+  $config_handle->seek( 0, 0 );
+  $config_handle->print($config);
+  $config_handle->seek( 0, 0 );
+
+  my $old_config = $self->config;
+
+  try
+  {
+    $self->_set_config( Dandelions::Config->new( $self->config_handle ) );
+  }
+  catch
+  {
+    $self->_set_config($old_config);
+    die "Cannot load new config: $_";
+  };
+
+  try
+  {
+    $self->_prepared(undef);
+    $self->prepare;
+  }
+  catch
+  {
+    $self->_set_config($old_config);
+    $self->_prepared(undef);
+    $self->prepare;
+    die "Cannot prepare new config: $_";
+  };
+}
+
 sub prepare
 {
   my $self = shift;
 
   return
-    if $self->_prepared;
+      if $self->_prepared;
 
-  foreach my $binding (@{ $self->config })
+  my %current = map { $_->bound => $_->sock } @{ $self->servers };
+  my @new_servers;
+
+  foreach my $binding ( @{ $self->config } )
   {
-    Dandelions::Server->new($binding);
+    if ( defined $binding->{Listen} && exists $current{ $binding->{Listen} } )
+    {
+      $binding->{sock} = delete $current{ $binding->{Listen} };
+    }
+
+    push @new_servers,
+        Dandelions::Server->new( %$binding, dandelion => $self );
+  }
+
+  @{ $self->servers } = (@new_servers);
+  foreach my $server ( values %current )
+  {
+    $server->close;
   }
 
   $self->_prepared(1);
@@ -93,7 +151,7 @@ sub run_child
   my $self = shift;
 
   return $self->_child
-    if defined $self->_child;
+      if defined $self->_child;
 
   # Check everything before forking
   $self->prepare;
@@ -105,7 +163,7 @@ sub run_child
     my $rv = waitpid( $child, POSIX::WNOHANG );
 
     croak "Child process could not be forked: $?"
-      if $rv < 0;
+        if $rv < 0;
 
     $self->_child($child);
     return $child;
@@ -115,17 +173,18 @@ sub run_child
 }
 
 require POSIX;
+
 sub DEMOLISH
 {
   my $self = shift;
 
-  if ($self->_child)
+  if ( $self->_child )
   {
     kill POSIX::SIGTERM, $self->_child;
   }
 }
 
-1; # End of Dandelions
+1;    # End of Dandelions
 
 __END__
 
