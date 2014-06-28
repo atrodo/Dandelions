@@ -9,7 +9,7 @@ use JSON;
 use autodie;
 
 use Data::Dumper;
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw/blessed openhandle/;
 
 my $json           = JSON->new->relaxed(1);
 my $default_config = $json->decode(
@@ -18,7 +18,20 @@ my $default_config = $json->decode(
 close DATA;
 
 has _config_handle => (
-  is => 'ro',
+  is  => 'ro',
+  isa => sub
+  {
+    my ($cfg) = @_;
+
+    return
+      if ref($cfg) eq "GLOB" && openhandle($cfg);
+
+    return
+      if blessed($cfg) && $cfg->isa("IO::Handle");
+
+    croak "config_handle does not appear to be a IO::Handle";
+  },
+  default => sub {""},
 );
 
 has config => (
@@ -33,7 +46,7 @@ around BUILDARGS => sub
 
   my $handle;
 
-  if ( blessed( $_[0] ) && $_[0]->isa("IO::Handle") )
+  if (@_ == 1)
   {
     $handle = shift;
   }

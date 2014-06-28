@@ -13,7 +13,7 @@ use Try::Tiny;
 use Carp;
 use autodie;
 use IO::File;
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw/blessed openhandle/;
 
 use open qw/:encoding(UTF-8)/;
 
@@ -37,12 +37,22 @@ has config_handle => (
   isa => sub
   {
     my ($cfg) = @_;
-    croak "config_file does not appear to be a IO::Handle"
-        unless blessed($cfg) && $cfg->isa("IO::Handle");
+
+    return
+        if ref($cfg) eq "GLOB" && openhandle($cfg);
+
+    return
+        if blessed($cfg) && $cfg->isa("IO::Handle");
+
+    croak "config_file does not appear to be a IO::Handle";
   },
   coerce => sub
   {
     my ($cfg) = @_;
+
+    return $cfg
+        if ref($cfg) eq "GLOB" && openhandle($cfg);
+
     return $cfg
         if blessed($cfg) && $cfg->isa("IO::Handle");
 
