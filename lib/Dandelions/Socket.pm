@@ -2,7 +2,7 @@ package Dandelions::Socket;
 
 use Moo;
 use Carp;
-use Scalar::Util qw/blessed/;
+use Scalar::Util qw/blessed weaken/;
 use fields qw/reader_sub writer_sub/;
 
 use Try::Tiny;
@@ -43,29 +43,12 @@ sub BUILD
   $self->watch_write(1);
 }
 
-BEGIN
-{
-
-  package MagicalCodeRef;
-
-    require B;
-  use overload '""' => sub
-  {
-
-    my $ref = shift;
-    my $gv  = B::svref_2object($ref)->GV;
-    sprintf "%s:%d", $gv->FILE, $gv->LINE;
-  };
-
-  sub enchant { bless $_[1], $_[0] }
-}
-
 sub reader
 {
   my $self = shift;
-  my $sub = shift;
+  my $sub  = shift;
 
-  if (!defined $self)
+  if ( !defined $self )
   {
     $self->reader_sub(undef);
     $self->watch_read(0);
@@ -75,26 +58,26 @@ sub reader
   if ( blessed($sub) && $sub->can("reader") )
   {
     my $sub_self = $sub;
-    $sub = sub {
-      my $gv  = B::svref_2object($sub_self->can("reader"))->GV;
-      warn sprintf "%s:%d\n", $gv->FILE, $gv->LINE;
-      $sub_self->reader(@_);
+    weaken($sub_self);
+
+    $sub = sub
+    {
+      $sub_self->reader(@_)
+        unless !defined $sub_self;
     };
   }
 
   if ( ref $sub eq "CODE" )
   {
     my $sub_self = $sub;
-    $sub = sub {
-      my $gv  = B::svref_2object($sub_self)->GV;
-      warn sprintf "%s:%d\n", $gv->FILE, $gv->LINE;
+    $sub = sub
+    {
       $sub_self->(@_);
     };
   }
 
   croak "reader must be a coderef: $sub"
-    unless ref $sub eq "CODE";
-
+      unless ref $sub eq "CODE";
 
   $self->reader_sub($sub);
 

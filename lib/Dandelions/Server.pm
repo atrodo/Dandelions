@@ -28,6 +28,7 @@ has sock => (
 has dandelion => (
   is       => 'ro',
   required => 1,
+  weak_ref => 1,
   isa      => sub
   {
     my $dande = shift;
